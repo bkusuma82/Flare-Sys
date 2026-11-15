@@ -510,6 +510,13 @@ export const Step7ReportDatasheet: React.FC<Step7ReportDatasheetProps> = ({
               </div>
             </div>
           </div>
+
+          <div className="mt-4 bg-amber-950/25 border border-amber-700/40 rounded-lg p-3 text-[11px] text-slate-300 leading-relaxed flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-amber-300">Disclaimer:</strong> Dokumen dan hasil kalkulasi ini merupakan <strong>estimasi awal (preliminary engineering estimate)</strong> dan belum dapat dijadikan dokumen konstruksi final sebelum diverifikasi menggunakan perangkat lunak rekayasa berlisensi serta diperiksa dan ditandatangani oleh engineer berlisensi.
+            </div>
+          </div>
         </div>
       </div>
 

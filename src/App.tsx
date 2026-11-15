@@ -578,6 +578,15 @@ export default function App() {
             onPrev={() => setActiveStep(7)}
           />
         )}
+
+        {/* Global Preliminary Engineering Disclaimer */}
+        <div className="no-print mt-8 bg-amber-950/25 border border-amber-700/40 rounded-xl px-4 py-3 flex items-start gap-2.5 text-[11px] text-slate-300 leading-relaxed">
+          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold text-amber-300">Disclaimer Engineering: </span>
+            Aplikasi ini hanya berfungsi sebagai <strong>estimasi awal (preliminary design / screening)</strong>. Untuk desain detail (FEED/DED), pengadaan, konstruksi, maupun persetujuan keselamatan resmi, seluruh hasil perhitungan wajib diverifikasi ulang menggunakan <strong>perangkat lunak simulasi berlisensi</strong> (seperti Flaresim®, Aspen Flare System Analyzer™) dan ditinjau serta disahkan oleh <strong>engineer berlisensi</strong>.
+          </div>
+        </div>
       </main>
 
       {/* Save / Open Project Modal */}

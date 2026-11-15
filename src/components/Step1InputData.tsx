@@ -24,7 +24,6 @@ import {
   Compass,
   FileCode2,
   Sliders,
-  Check,
   RotateCcw,
   Sparkles,
   Layers,
@@ -69,13 +68,6 @@ export const Step1InputData: React.FC<Step1InputDataProps> = ({
       ? fluid.customComponents
       : DEFAULT_GAS_COMPONENTS
   );
-
-  // Interactive Operational Range -> Governing Design Case Assistant
-  const [opPMinMbar, setOpPMinMbar] = useState<number>(25);
-  const [opPMaxMbar, setOpPMaxMbar] = useState<number>(40);
-  const [opFlowMax, setOpFlowMax] = useState<number>(Math.max(100, Math.round(fluid.massFlowRate)));
-  const [opFlowMin, setOpFlowMin] = useState<number>(Math.max(50, Math.round(fluid.massFlowRate * 0.4)));
-  const [activeDesignCase, setActiveDesignCase] = useState<'peak_sizing' | 'max_backpressure' | 'turndown' | null>(null);
 
   const [hysysSnippet, setHysysSnippet] = useState(
     JSON.stringify(
@@ -170,37 +162,6 @@ export const Step1InputData: React.FC<Step1InputDataProps> = ({
         flowInputMode: 'mass_kgh',
       }));
     }
-  };
-
-  // Apply Governing Design Case from fluctuating operational range (e.g., 25-40 mbar)
-  const applyGoverningDesignCase = (caseType: 'peak_sizing' | 'max_backpressure' | 'turndown') => {
-    const pMbar = caseType === 'peak_sizing' ? opPMinMbar : opPMaxMbar;
-    const pBarg = Math.max(0.001, pMbar / 1000);
-    const targetRho = calculateGasDensity(
-      pBarg,
-      fluid.temperature,
-      fluid.molecularWeight,
-      fluid.compressibilityZ
-    );
-    const selectedFlowVal = caseType === 'turndown' ? opFlowMin : opFlowMax;
-
-    let nextMassKgH = selectedFlowVal;
-    if (flowMode === 'vol_actual_m3h') {
-      nextMassKgH = Math.max(1, Math.round(selectedFlowVal * targetRho));
-    } else if (flowMode === 'vol_normal_nm3h') {
-      nextMassKgH = Math.max(1, Math.round(selectedFlowVal * rhoNormal));
-    } else {
-      nextMassKgH = Math.max(1, Math.round(selectedFlowVal));
-    }
-
-    setFluid((p) => ({
-      ...p,
-      reliefPressure: Math.round(pBarg * 10000) / 10000,
-      massFlowRate: nextMassKgH,
-      volumetricFlowInput: flowMode !== 'mass_kgh' ? selectedFlowVal : p.volumetricFlowInput,
-      flowInputMode: flowMode,
-    }));
-    setActiveDesignCase(caseType);
   };
 
   // Custom component percentage change
@@ -386,131 +347,30 @@ export const Step1InputData: React.FC<Step1InputDataProps> = ({
           </button>
         </div>
 
-        {/* Design Basis vs Operational Data Guidance */}
+        {/* Engineering Guidance for Input Data */}
         <div className="mt-4 bg-sky-950/30 border border-sky-800/60 rounded-lg p-3 text-xs text-slate-300 flex items-start gap-2.5">
           <Info className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />
           <div className="space-y-1 leading-relaxed">
             <div className="font-bold text-sky-300">
-              Panduan Engineering: Data Desain (Governing Case) vs Data Operasional (contoh P = 25–40 mbar)
+              Panduan Engineering Pengisian Data Input (Laju Alir, Tekanan, Temperatur &amp; Komposisi)
             </div>
             <p className="text-[11px] text-slate-300">
-              Data yang dimasukkan ke simulasi flare & separator sebaiknya menggunakan <strong className="text-amber-300">Data Desain (Skenario Kasus Terburuk / Governing Case)</strong>, bukan sekadar rata-rata operasional harian:
+              Gunakan <strong className="text-amber-300">Data Desain (Governing Case / Kondisi Puncak)</strong> agar ukuran flare tip, tinggi stack, dan separator aman pada rentang operasi terburuk:
             </p>
             <ul className="text-[11px] text-slate-400 list-disc pl-4 space-y-0.5">
               <li>
-                <strong className="text-slate-200">Sizing Diameter Tip, Separator & Radiasi Puncak:</strong> Gunakan <strong>Flow Rate Maksimum (Peak)</strong> dan <strong>Tekanan Terendah (mis. 25 mbar / 0.025 barg)</strong> karena pada tekanan rendah densitas gas paling kecil sehingga volume aktual (m³/h) dan kecepatan gas (v_gas) mencapai nilai tertinggi.
+                <strong className="text-slate-200">Laju Alir (Flow Rate):</strong> Masukkan debit pelepasan puncak (<em>peak flow</em>) dalam <strong>kg/h</strong>, <strong>m³/h aktual (@ P, T)</strong>, atau <strong>Nm³/h (0°C, 1 atm)</strong>. Untuk cek kestabilan nyala (<em>turndown / burnback</em>), uji pula dengan debit minimum.
               </li>
               <li>
-                <strong className="text-slate-200">Sizing U-Loop Seal & Batas Tekanan Balik (Backpressure):</strong> Evaluasi pada <strong>Tekanan Tertinggi / Set PRV (mis. 40 mbar atau 255 mmWC)</strong> agar tinggi seal air aman dari <em>blow-through</em>.
+                <strong className="text-slate-200">Tekanan Relief / Desain:</strong> Untuk sizing diameter tip &amp; separator, gunakan tekanan operasi terendah (mis. 0.025 barg / 25 mbar) karena densitas gas paling kecil dan volume aktual paling besar. Untuk evaluasi <em>backpressure</em> dan seal drain, gunakan tekanan maksimum (mis. 0.040 barg / 40 mbar atau set PRV).
               </li>
               <li>
-                <strong className="text-slate-200">Cek Burnback / Turndown:</strong> Uji ulang dengan <strong>Flow Rate Minimum</strong> untuk memastikan Mach number tidak turun di bawah batas kestabilan nyala api.
+                <strong className="text-slate-200">Temperatur &amp; Komposisi Fluida:</strong> Temperatur lebih tinggi menurunkan densitas gas sehingga menaikkan kecepatan keluar tip. Gunakan komposisi <strong>Custom Gas</strong> atau impor JSON dari Aspen HYSYS agar nilai <em>MW, LHV,</em> dan <em>Cp/Cv</em> akurat.
+              </li>
+              <li>
+                <strong className="text-slate-200">Kondisi Lingkungan:</strong> Masukkan kecepatan angin desain setempat untuk memodelkan kemiringan nyala api (<em>flame tilt</em>) dan radiasi matahari (<em>solar constant</em> ~1.0 kW/m² per API 521).
               </li>
             </ul>
-
-            {/* Interactive Operating Range -> Design Case Helper */}
-            <div className="mt-2.5 pt-2.5 border-t border-sky-800/50 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-amber-300">
-                  Asisten Konversi Rentang Operasi → Kasus Desain Otomatis:
-                </span>
-                {activeDesignCase && (
-                  <span className="text-[10px] font-mono bg-emerald-950/80 border border-emerald-700/70 text-emerald-300 px-2 py-0.5 rounded flex items-center gap-1">
-                    <Check className="w-3 h-3" />
-                    {activeDesignCase === 'peak_sizing'
-                      ? `Case Peak Sizing aktif (${opPMinMbar} mbarg + Flow Puncak)`
-                      : activeDesignCase === 'max_backpressure'
-                      ? `Case Max Seal/Backpressure aktif (${opPMaxMbar} mbarg + Flow Puncak)`
-                      : `Case Turndown aktif (${opPMaxMbar} mbarg + Flow Min)`}
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div>
-                  <label className="text-[10px] text-slate-400 block">P_min Operasi (mbar)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={opPMinMbar}
-                    onChange={(e) => setOpPMinMbar(Math.max(1, parseFloat(e.target.value) || 25))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 block">P_max Operasi (mbar)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={opPMaxMbar}
-                    onChange={(e) => setOpPMaxMbar(Math.max(1, parseFloat(e.target.value) || 40))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 block">
-                    Flow Puncak ({flowMode === 'vol_actual_m3h' ? 'm³/h' : flowMode === 'vol_normal_nm3h' ? 'Nm³/h' : 'kg/h'})
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={opFlowMax}
-                    onChange={(e) => setOpFlowMax(Math.max(1, parseFloat(e.target.value) || 100))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-amber-300"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 block">
-                    Flow Min ({flowMode === 'vol_actual_m3h' ? 'm³/h' : flowMode === 'vol_normal_nm3h' ? 'Nm³/h' : 'kg/h'})
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={opFlowMin}
-                    onChange={(e) => setOpFlowMin(Math.max(1, parseFloat(e.target.value) || 50))}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-sky-300"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => applyGoverningDesignCase('peak_sizing')}
-                  className={`px-2.5 py-1 rounded text-[11px] font-semibold border transition-colors ${
-                    activeDesignCase === 'peak_sizing'
-                      ? 'bg-amber-500 text-slate-950 border-amber-400'
-                      : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border-amber-500/40'
-                  }`}
-                >
-                  1. Terapkan Peak Sizing ({opPMinMbar} mbar + Flow Puncak)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyGoverningDesignCase('max_backpressure')}
-                  className={`px-2.5 py-1 rounded text-[11px] font-semibold border transition-colors ${
-                    activeDesignCase === 'max_backpressure'
-                      ? 'bg-sky-500 text-slate-950 border-sky-400'
-                      : 'bg-slate-900 hover:bg-slate-800 text-sky-300 border-sky-500/40'
-                  }`}
-                >
-                  2. Terapkan Max Seal/Backpressure ({opPMaxMbar} mbar + Flow Puncak)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyGoverningDesignCase('turndown')}
-                  className={`px-2.5 py-1 rounded text-[11px] font-semibold border transition-colors ${
-                    activeDesignCase === 'turndown'
-                      ? 'bg-emerald-500 text-slate-950 border-emerald-400'
-                      : 'bg-slate-900 hover:bg-slate-800 text-emerald-300 border-emerald-500/40'
-                  }`}
-                >
-                  3. Uji Turndown ({opPMaxMbar} mbar + Flow Min)
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
