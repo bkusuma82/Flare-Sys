@@ -1,0 +1,177 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidFluid(f) {
+      return f is map &&
+        f.gasType is string && f.gasType.size() <= 32 &&
+        f.gasName is string && f.gasName.size() <= 120 &&
+        f.molecularWeight is number &&
+        f.massFlowRate is number &&
+        f.temperature is number &&
+        f.reliefPressure is number &&
+        f.lhv is number &&
+        f.heatCapacityRatio is number &&
+        f.compressibilityZ is number &&
+        f.h2sContentPct is number &&
+        (!('customComponents' in f) || (f.customComponents is list && f.customComponents.size() <= 25));
+    }
+
+    function isValidEnvironment(e) {
+      return e is map &&
+        e.ambientTemp is number &&
+        e.relativeHumidity is number &&
+        e.windSpeed is number &&
+        e.windDirection is number &&
+        e.solarRadiation is number;
+    }
+
+    function isValidTip(t) {
+      return t is map &&
+        t.tipType is string && t.tipType.size() <= 32 &&
+        t.tipDiameter is number &&
+        t.dischargeCoeff is number;
+    }
+
+    function isValidStack(s) {
+      return s is map &&
+        s.stackHeight is number &&
+        s.stackDiameter is number &&
+        s.supportType is string && s.supportType.size() <= 32 &&
+        s.locationX is number &&
+        s.locationY is number;
+    }
+
+    function isValidSeparator(sep) {
+      return sep is map &&
+        sep.orientation in ['vertical', 'horizontal'] &&
+        sep.dropletSizeMicron is number &&
+        sep.selectedDiameterMm is number &&
+        sep.condensateRateLitersPerDay is number &&
+        sep.drainMode is string && sep.drainMode.size() <= 32;
+    }
+
+    function isValidSummary(sum) {
+      return sum is map &&
+        sum.heatReleaseMw is number &&
+        sum.stackHeightM is number &&
+        sum.maxRadiationKw is number &&
+        sum.isAllCompliant is bool &&
+        sum.gasName is string && sum.gasName.size() <= 120 &&
+        sum.separatorOrientation in ['vertical', 'horizontal'] &&
+        sum.separatorDiaMm is number;
+    }
+
+    function isValidFlareProject(data) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'projectName', 'docNumber', 'facilityLocation',
+          'leadEngineer', 'hseAuditor', 'status', 'notes', 'currentPresetId',
+          'unitSystem', 'activeStep', 'fluid', 'environment', 'tip', 'stack',
+          'receptors', 'separatorConfig', 'summary', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerId', 'projectName', 'docNumber', 'facilityLocation',
+          'leadEngineer', 'hseAuditor', 'status', 'notes', 'currentPresetId',
+          'unitSystem', 'activeStep', 'fluid', 'environment', 'tip', 'stack',
+          'receptors', 'separatorConfig', 'summary', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.ownerId is string && data.ownerId.size() <= 128 && data.ownerId == request.auth.uid &&
+        data.projectName is string && data.projectName.size() >= 1 && data.projectName.size() <= 140 &&
+        data.docNumber is string && data.docNumber.size() <= 60 &&
+        data.facilityLocation is string && data.facilityLocation.size() <= 140 &&
+        data.leadEngineer is string && data.leadEngineer.size() <= 100 &&
+        data.hseAuditor is string && data.hseAuditor.size() <= 100 &&
+        data.status in ['draft', 'completed'] &&
+        data.notes is string && data.notes.size() <= 500 &&
+        data.currentPresetId is string && data.currentPresetId.size() <= 64 &&
+        data.unitSystem in ['SI', 'Field'] &&
+        data.activeStep is int && data.activeStep >= 1 && data.activeStep <= 8 &&
+        isValidFluid(data.fluid) &&
+        isValidEnvironment(data.environment) &&
+        isValidTip(data.tip) &&
+        isValidStack(data.stack) &&
+        data.receptors is list && data.receptors.size() <= 50 &&
+        (data.receptors.size() == 0 || (
+          data.receptors[0] is map &&
+          data.receptors[0].id is string &&
+          data.receptors[0].id.size() <= 64
+        )) &&
+        isValidSeparator(data.separatorConfig) &&
+        isValidSummary(data.summary) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    match /projects/{projectId} {
+      allow get: if isVerifiedUser() &&
+        isValidId(projectId) &&
+        resource.data.ownerId == request.auth.uid;
+
+      allow list: if isVerifiedUser() &&
+        resource.data.ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(projectId) &&
+        isValidFlareProject(incoming()) &&
+        incoming().id == projectId &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(projectId) &&
+        isValidFlareProject(incoming()) &&
+        existing().ownerId == request.auth.uid &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        existing().status != 'completed' && (
+          (incoming().status == 'draft' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'projectName', 'docNumber', 'facilityLocation', 'leadEngineer',
+              'hseAuditor', 'notes', 'currentPresetId', 'unitSystem', 'activeStep',
+              'fluid', 'environment', 'tip', 'stack', 'receptors',
+              'separatorConfig', 'summary', 'updatedAt'
+            ])) ||
+          (incoming().status == 'completed' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'projectName', 'docNumber', 'facilityLocation', 'leadEngineer',
+              'hseAuditor', 'status', 'notes', 'currentPresetId', 'unitSystem',
+              'activeStep', 'fluid', 'environment', 'tip', 'stack', 'receptors',
+              'separatorConfig', 'summary', 'updatedAt'
+            ]))
+        );
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(projectId) &&
+        resource.data.ownerId == request.auth.uid;
+    }
+  }
+}

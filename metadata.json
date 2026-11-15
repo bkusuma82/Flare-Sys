@@ -1,0 +1,6 @@
+{
+  "name": "Flaresim - Flare System Design & Radiation Simulator",
+  "description": "Interactive API 521 flare stack sizing, 2D radiation profile curves, acoustic noise, gas water separator sizing, and 2D GA CAD drawings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

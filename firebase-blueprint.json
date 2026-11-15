@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "FlareProject": {
+      "title": "FlareProject",
+      "description": "Saved Flaresim engineering project containing fluid properties, ambient environment, flare tip, stack layout, receptors, gas-water separator sizing, and engineering metadata",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique project document identifier"
+        },
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the project owner"
+        },
+        "projectName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140,
+          "description": "Human-readable engineering project title"
+        },
+        "docNumber": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Engineering calculation document number"
+        },
+        "facilityLocation": {
+          "type": "string",
+          "maxLength": 140,
+          "description": "Plant or facility site name"
+        },
+        "leadEngineer": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Process lead engineer name"
+        },
+        "hseAuditor": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "HSE / Process Safety reviewer"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "completed"],
+          "description": "Lifecycle status of the flare design project"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Optional engineer revision notes"
+        },
+        "currentPresetId": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Base gas scenario preset identifier"
+        },
+        "unitSystem": {
+          "type": "string",
+          "enum": ["SI", "Field"],
+          "description": "Unit display preference"
+        },
+        "activeStep": {
+          "type": "number",
+          "description": "Last active pipeline step (1-8)"
+        },
+        "fluid": {
+          "type": "object",
+          "description": "Thermodynamic and flow properties of flare gas"
+        },
+        "environment": {
+          "type": "object",
+          "description": "Ambient temperature, wind speed/direction, humidity, solar radiation"
+        },
+        "tip": {
+          "type": "object",
+          "description": "Flare tip type, diameter, and discharge coefficient"
+        },
+        "stack": {
+          "type": "object",
+          "description": "Flare stack height, riser diameter, support type, and WGS84/local coordinates"
+        },
+        "receptors": {
+          "type": "array",
+          "description": "List of receptor coordinates and API 521 / noise limits"
+        },
+        "separatorConfig": {
+          "type": "object",
+          "description": "Gas-water separator (KO drum) configuration (vertical/horizontal, dimensions, internals)"
+        },
+        "summary": {
+          "type": "object",
+          "description": "Computed KPI summary for quick project list display"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "projectName",
+        "docNumber",
+        "facilityLocation",
+        "leadEngineer",
+        "hseAuditor",
+        "status",
+        "notes",
+        "currentPresetId",
+        "unitSystem",
+        "activeStep",
+        "fluid",
+        "environment",
+        "tip",
+        "stack",
+        "receptors",
+        "separatorConfig",
+        "summary",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/FlareProject"
+      },
+      "description": "Private saved Flaresim engineering projects owned by authenticated users"
+    }
+  }
+}
